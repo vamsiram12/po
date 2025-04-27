@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thermal Receipt Generator</title>
+  <style>
+    @page {
+      margin: 0;
+      size: 80mm 297mm;
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .vertical-receipt {
+      width: 78mm;
+      margin: 20px auto;
+      background-color: white;
+      padding: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      font-size: 17px;
+      /* Increased from 15px */
+      line-height: 1.3;
+      box-sizing: border-box;
+    }
+
+    .receipt-header {
+      text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .receipt-header div:first-child {
+      font-size: 16px;
+      /* Increased from 17px */
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+
+    .hr {
+      border-top: 1px solid #000;
+      margin: 4px 0;
+    }
+
+    .receipt-info div {
+      margin: 2px 0;
+    }
+
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .receipt-headers {
+      display: flex;
+      margin-bottom: 3px;
+    }
+
+    .header-item,
+    .header-qty,
+    .header-price,
+    .header-amount {
+      font-weight: normal;
+    }
+
+    .header-item {
+      flex: 3;
+      text-align: left;
+    }
+
+    .header-qty {
+      flex: 1;
+      text-align: center;
+    }
+
+    .header-price {
+      flex: 1.5;
+      text-align: right;
+    }
+
+    .header-amount {
+      flex: 1.5;
+      text-align: right;
+    }
+
+    .receipt-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
+    }
+
+    .receipt-item-name {
+      flex: 3;
+      text-align: left;
+    }
+
+    .receipt-item-qty {
+      flex: 1;
+      text-align: center;
+    }
+
+    .receipt-item-price {
+      flex: 1.5;
+      text-align: right;
+    }
+
+    .receipt-item-amount {
+      flex: 1.5;
+      text-align: right;
+    }
+
+    .receipt-subtotal {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 5px;
+      padding-top: 3px;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      font-size: 17px;
+    }
+
+    .grand-total-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+      font-weight: bold;
+      gap: 10px;
+      font-size: 18px;
+      /* Added */
+    }
+
+    .grand-total-row div:first-child {
+      margin-right: 0px;
+      /* Add spacing between "Grand Total:" and the amount */
+    }
+
+    .receipt-footer {
+      text-align: center;
+      margin-top: 10px;
+      padding-top: 5px;
+      border-top: 1px solid #ccc;
+    }
+
+    /* Bold text class for Dine In and Token No */
+    .bold-text {
+      font-weight: bold;
+    }
+
+    .receipt-section-title {
+      font-weight: bold;
+      margin: 5px 0;
+    }
+
+    /* Controls Section */
+    .controls {
+      width: 100%;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 8px 12px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      margin: 3px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .remove-item {
+      background-color: #ff4444;
+    }
+
+    .item-entry {
+      display: flex;
+      align-items: center;
+      padding: 4px;
+      margin: 4px 0;
+      background-color: #f8f8f8;
+      border-radius: 3px;
+    }
+
+    .item-entry span {
+      flex: 1;
+      padding: 0 5px;
+    }
+    .suggestions {
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 1000;
+      width: calc(100% - 12px); /* Match input width */
+    }
+
+    .suggestion-item {
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    .suggestion-item:hover {
+      background-color: #f0f0f0;
+    }
+    @media print {
+
+      .controls,
+      .page-title {
+        display: none !important;
+      }
+
+      .vertical-receipt {
+        width: 72mm !important;
+        padding: 2mm !important;
+        font-size: 16px !important;
+        /* Increased from 14px */
+        line-height: 1.2;
+        box-shadow: none;
+        margin-left: 0 !important;
+        /* Remove auto-centering */
+
+      }
+
+      .receipt-header div:first-child {
+        font-size: 18px !important;
+        /* Increased from 16px */
+      }
+
+      .hr {
+        margin: 3px 0 !important;
+      }
+
+      .receipt-item {
+        margin: 1px 0 !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2 class="page-title">Thermal Receipt Generator</h2>
+
+    <div class="controls">
+      <!-- Restaurant Details -->
+      <div class="section">
+        <h3>Restaurant Details</h3>
+        <div class="form-group">
+          <label>Restaurant Name:</label>
+          <input type="text" id="restaurant-name" value="Maaya Restaurant & Bar">
+        </div>
+        <div class="form-group">
+          <label>Customer Name:</label>
+          <input type="text" id="customer-name">
+        </div>
+        <div class="form-group">
+          <label>Date:</label>
+          <input type="date" id="date">
+        </div>
+        <div class="form-group">
+          <label>Time:</label>
+          <input type="time" id="time">
+        </div>
+        <div class="info-row">
+          <div class="form-group" style="width:48%">
+            <label>Bill No:</label>
+            <input type="text" id="bill-no" value="2043">
+          </div>
+          <div class="form-group" style="width:48%">
+            <label>Cashier:</label>
+            <input type="text" id="cashier" value="biller">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Dine In:</label>
+          <input type="text" id="dine-in" value="AC 2">
+        </div>
+        <div class="form-group">
+          <label>Token Numbers:</label>
+          <input type="text" id="token-no" value="155, 160">
+        </div>
+      </div>
+
+      <!-- Food Items -->
+      <div class="section">
+        <h3>Add Food Items</h3>
+        <div class="form-group">
+          <label>Item Name:</label>
+          <input type="text" id="food-item-name" class="item-select" autocomplete="off">
+          <div id="food-suggestions" class="suggestions"></div>
+        </div>
+        <div class="info-row">
+          <div class="form-group" style="width:30%">
+            <label>Qty:</label>
+            <input type="number" id="food-item-qty" min="1" value="1">
+          </div>
+          <div class="form-group" style="width:65%">
+            <label>Price:</label>
+            <input type="number" id="food-item-price" step="0.01">
+          </div>
+        </div>
+        <button id="add-food-item">Add Food Item</button>
+        <div id="food-item-list"></div>
+      </div>
+
+      <!-- Bar Items -->
+      <div class="section">
+        <h3>Add Bar Items</h3>
+        <div class="form-group">
+          <label>Item Name:</label>
+          <input type="text" id="bar-item-name" class="item-select" autocomplete="off">
+          <div id="bar-suggestions" class="suggestions"></div>
+        </div>
+        <div class="info-row">
+          <div class="form-group" style="width:30%">
+            <label>Qty:</label>
+            <input type="number" id="bar-item-qty" min="1" value="1">
+          </div>
+          <div class="form-group" style="width:65%">
+            <label>Price:</label>
+            <input type="number" id="bar-item-price" step="0.01">
+          </div>
+        </div>
+        <button id="add-bar-item">Add Bar Item</button>
+        <div id="bar-item-list"></div>
+      </div>
+
+
+      <!-- Executive Charges -->
+      <div class="section">
+        <h3>Executive Charges</h3>
+        <div class="form-group">
+          <label>Charge (%):</label>
+          <input type="number" id="exec-charge-percent" min="0" max="100" value="0">
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions">
+        <button id="generate-receipt">Generate Receipt</button>
+        <button id="print-receipt">Print Receipt</button>
+        <button id="clear-all">Clear All</button>
+        <button id="load-example">Load Example</button>
+      </div>
+    </div>
+
+    <!-- Receipt Template -->
+    <div class="vertical-receipt" id="receipt-output">
+      <div class="receipt-header">
+        <div>Maaya Restaurant & Bar</div>
+        <div>D no:9-14,ThanapalliRoad,Srinivasa</div>
+        <div>Puram, Tirupati Rural</div>
+      </div>
+
+
+
+      <div class="receipt-info">
+        <div class="hr"></div>
+        <div>Name: <span id="rcpt-customer-name"></span></div>
+        <div class="hr"></div>
+        <div class="info-row">
+          <div>Date: <span id="rcpt-date"></span></div>
+          <div class="bold-text">Dine In: <span id="rcpt-dine-in" class="bold-text"></span></div>
+        </div>
+        <div>Time: <span id="rcpt-time"></span></div>
+        <div class="info-row">
+          <div>Cashier: <span id="rcpt-cashier"></span></div>
+          <div>Bill No: <span id="rcpt-bill-no"></span></div>
+        </div>
+        <div class="bold-text">Token No: <span id="rcpt-token-no" class="bold-text"></span></div>
+
+        <div class="hr"></div>
+
+        <div class="receipt-headers">
+          <div class="header-item">Item</div>
+          <div class="header-qty">Qty</div>
+          <div class="header-price">Price</div>
+          <div class="header-amount">Amount</div>
+        </div>
+
+        <div class="hr"></div>
+
+        <!-- Food Items -->
+        <div class="receipt-section">
+          <div class="receipt-section-title">Food Menu</div>
+          <div id="rcpt-food-items"></div>
+          <div class="receipt-subtotal">
+            <div>Sub Total: ₹<span id="rcpt-food-total" class="subtotal-value">0.00</span></div>
+          </div>
+        </div>
+
+        <!-- Bar Items -->
+        <div class="receipt-section">
+          <div class="receipt-section-title">Bar Menu</div>
+          <div id="rcpt-bar-items"></div>
+          <div class="receipt-subtotal">
+            <div>Sub Total: ₹<span id="rcpt-bar-total" class="subtotal-value">0.00</span></div>
+          </div>
+        </div>
+
+
+
+        <!-- Totals -->
+        <div class="receipt-section">
+          <div class="info-row">
+            <div>Total Qty: <span id="rcpt-total-qty">0</span></div>
+            <div>Sub Total: <span id="rcpt-subtotal">0.00</span></div>
+          </div>
+
+          <div id="rcpt-exec-charges" style="display:none;">
+            <div class="info-row">
+              <div>Executive Charges (<span id="rcpt-exec-percent">0</span>%):</div>
+              <div>₹<span id="rcpt-exec-amount">0.00</span></div>
+            </div>
+            <div class="hr"></div>
+            <div class="info-row" style="font-size:11px">
+              <div class="hr"></div>
+              <div>Round Off:₹<span id="rcpt-round-off">0.00</span></div>
+            </div>
+          </div>
+
+          <div class="grand-total-row">
+            <div>Grand Total: ₹<span id="rcpt-grand-total">0.00</span></div>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div class="receipt-footer">
+          <div>Thank you Please visit again</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Add this right after opening <script> tag
+      let menuItems = [];
+
+      // Fetch Google Sheets data
+      async function loadMenu() {
+        try {
+          const response = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vTdYjkDGNkoTDLJfd3bSlZYiJqfaU7-URRTFP2S-CBvqeA2-3Rnr496Om8DWjHXw0RTHuBa1EPWW3Br/pub?output=csv');
+          const data = await response.text();
+          const rows = data.split('\n').slice(1);
+
+          menuItems = rows.map(row => {
+            const [name, price, category] = row.split(',');
+            return {
+              name: name.trim(),
+              price: parseFloat(price),
+              category: category.trim()
+            };
+          });
+
+          initializeSearch(); // CHANGED FROM populateDropdowns
+        } catch (error) {
+          console.error('Error loading menu:', error);
+        }
+      }
+          
+
+        function initializeSearch() {
+        const foodInput = document.getElementById('food-item-name');
+        const barInput = document.getElementById('bar-item-name');
+        const foodSuggestions = document.getElementById('food-suggestions');
+        const barSuggestions = document.getElementById('bar-suggestions');
+
+          function showSuggestions(input, suggestions, category) {
+          const searchText = input.value.toLowerCase();
+          suggestions.innerHTML = '';
+
+          const filtered = menuItems.filter(item => 
+            item.category === category && 
+            item.name.toLowerCase().includes(searchText)
+          ).slice(0, 5); // Show max 5 suggestions
+
+             if (filtered.length === 0) {
+                  const div = document.createElement('div');
+                  div.className = 'suggestion-item';
+                  div.textContent = 'No matches found';
+                  suggestions.appendChild(div);
+                } else {
+                  filtered.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'suggestion-item';
+                    div.textContent = item.name;
+                    div.onclick = () => {
+                      input.value = item.name;
+                      // Auto-fill price for selected item
+                      const priceField = input.id === 'food-item-name' 
+                        ? document.getElementById('food-item-price')
+                        : document.getElementById('bar-item-price');
+                      priceField.value = item.price.toFixed(2);
+                      suggestions.style.display = 'none';
+                    };
+                    suggestions.appendChild(div);
+                  });
+                }
+
+                suggestions.style.display = filtered.length ? 'block' : 'none';
+              }
+
+              // Food input handling
+              foodInput.addEventListener('input', () => {
+                showSuggestions(foodInput, foodSuggestions, 'Food');
+              });
+
+              // Bar input handling
+              barInput.addEventListener('input', () => {
+                showSuggestions(barInput, barSuggestions, 'Bar');
+              });
+
+              // Hide suggestions when clicking outside
+              document.addEventListener('click', (e) => {
+                if (!e.target.closest('.item-select')) {
+                  foodSuggestions.style.display = 'none';
+                  barSuggestions.style.display = 'none';
+                }
+              });
+            }
+
+
+      // Add this to your DOMContentLoaded event
+      document.addEventListener('DOMContentLoaded', () => {
+        loadMenu(); // Add this line
+        // ... rest of your existing code
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const now = new Date();
+        document.getElementById('date').value = now.toISOString().slice(0, 10);
+        document.getElementById('time').value =
+          `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        let foodItems = [];
+        let barItems = [];
+
+        document.getElementById('add-food-item').addEventListener('click', addFoodItem);
+        document.getElementById('add-bar-item').addEventListener('click', addBarItem);
+        document.getElementById('generate-receipt').addEventListener('click', generateReceipt);
+        document.getElementById('print-receipt').addEventListener('click', () => window.print());
+        document.getElementById('clear-all').addEventListener('click', clearAll);
+        document.getElementById('load-example').addEventListener('click', loadExample);
+
+        function addFoodItem() {
+          const item = getItemData('food');
+          if (validateItem(item)) {
+            foodItems.push(item);
+            addToItemList('food', item);
+            clearInputs('food');
+            generateReceipt();
+          }
+        }
+
+        function addBarItem() {
+          const item = getItemData('bar');
+          if (validateItem(item)) {
+            barItems.push(item);
+            addToItemList('bar', item);
+            clearInputs('bar');
+            generateReceipt();
+          }
+        }
+
+        /*function getItemData(type) {
+          const selectedItem = menuItems.find(item => 
+            item.name === document.getElementById(`${type}-item-name`).value
+          );
+  
+          return {
+            name: document.getElementById(`${type}-item-name`).value.trim(),
+            qty: parseInt(document.getElementById(`${type}-item-qty`).value),
+            price: selectedItem ? selectedItem.price : 0,
+            amount: function() { return this.qty * this.price; }
+          };
+        }*/
+        function getItemData(type) {
+          const inputValue = document.getElementById(`${type}-item-name`).value;
+
+          // Find exact match first
+          const selectedItem = menuItems.find(item => 
+            item.name.toLowerCase() === inputValue.toLowerCase() && 
+            item.category === (type === 'food' ? 'Food' : 'Bar')
+          );
+
+          // If no exact match, create new item
+          return selectedItem ? {
+            name: selectedItem.name,
+            qty: parseInt(document.getElementById(`${type}-item-qty`).value),
+            price: selectedItem.price,
+            amount: function() { return this.qty * this.price; }
+          } : {
+            name: inputValue,
+            qty: parseInt(document.getElementById(`${type}-item-qty`).value),
+            price: parseFloat(document.getElementById(`${type}-item-price`).value) || 0,
+            amount: function() { return this.qty * this.price; }
+          };
+        }
+
+
+        function validateItem(item) {
+          if (!item.name || isNaN(item.qty) || isNaN(item.price)) {
+            alert('Please fill all item details correctly');
+            return false;
+          }
+          return true;
+        }
+
+        function addToItemList(type, item) {
+          const list = document.getElementById(`${type}-item-list`);
+          const entry = document.createElement('div');
+          entry.className = 'item-entry';
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'remove-item';
+          removeBtn.textContent = 'Remove';
+
+          // Add event listener to handle removal
+          removeBtn.addEventListener('click', () => {
+            // Find the item's index
+            const index = (type === 'food')
+              ? foodItems.indexOf(item)
+              : barItems.indexOf(item);
+
+            // Remove the item
+            if (index > -1) {
+              if (type === 'food') foodItems.splice(index, 1);
+              if (type === 'bar') barItems.splice(index, 1);
+              generateReceipt(); // Refresh the receipt
+              entry.remove(); // Remove the entry from the UI
+            }
+          });
+
+          // Build the entry
+          entry.innerHTML = `
+          <span>${item.name}</span>
+          <span>${item.qty}</span>
+          <span>₹${item.price.toFixed(2)}</span>
+        `;
+          entry.appendChild(removeBtn); // Add the button
+          list.appendChild(entry);
+        }
+
+
+        function generateReceipt() {
+          document.getElementById('rcpt-customer-name').textContent =
+            document.getElementById('customer-name').value;
+          document.getElementById('rcpt-date').textContent =
+            formatDate(document.getElementById('date').value);
+          document.getElementById('rcpt-time').textContent =
+            document.getElementById('time').value;
+          document.getElementById('rcpt-dine-in').textContent =
+            document.getElementById('dine-in').value;
+          document.getElementById('rcpt-cashier').textContent =
+            document.getElementById('cashier').value;
+          document.getElementById('rcpt-bill-no').textContent =
+            document.getElementById('bill-no').value;
+          document.getElementById('rcpt-token-no').textContent =
+            document.getElementById('token-no').value;
+
+          renderItems('food');
+          renderItems('bar');
+
+          const foodTotal = foodItems.reduce((sum, item) => sum + item.amount(), 0);
+          const barTotal = barItems.reduce((sum, item) => sum + item.amount(), 0);
+          const totalQty = foodItems.reduce((sum, item) => sum + item.qty, 0) +
+            barItems.reduce((sum, item) => sum + item.qty, 0);
+
+          document.getElementById('rcpt-food-total').textContent = foodTotal.toFixed(2);
+          document.getElementById('rcpt-bar-total').textContent = barTotal.toFixed(2);
+          document.getElementById('rcpt-subtotal').textContent = (foodTotal + barTotal).toFixed(2);
+          document.getElementById('rcpt-total-qty').textContent = totalQty;
+
+          const execPercent = parseFloat(document.getElementById('exec-charge-percent').value);
+          let execAmount = 0;
+          if (execPercent > 0) {
+            execAmount = (foodTotal + barTotal) * (execPercent / 100);
+            document.getElementById('rcpt-exec-charges').style.display = 'block';
+            document.getElementById('rcpt-exec-percent').textContent = execPercent;
+            document.getElementById('rcpt-exec-amount').textContent = execAmount.toFixed(2);
+          } else {
+            document.getElementById('rcpt-exec-charges').style.display = 'none';
+          }
+
+          const grandTotal = foodTotal + barTotal + execAmount;
+          const roundedTotal = Math.round(grandTotal);
+          const roundOff = roundedTotal - grandTotal;
+
+          document.getElementById('rcpt-round-off').textContent = roundOff.toFixed(2);
+          document.getElementById('rcpt-grand-total').textContent = roundedTotal.toFixed(2);
+        }
+
+        function renderItems(type) {
+          const container = document.getElementById(`rcpt-${type}-items`);
+          container.innerHTML = '';
+          const items = type === 'food' ? foodItems : barItems;
+
+          items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'receipt-item';
+            div.innerHTML = `
+            <div class="receipt-item-name">${item.name}</div>
+            <div class="receipt-item-qty">${item.qty}</div>
+            <div class="receipt-item-price">₹${item.price.toFixed(2)}</div>
+            <div class="receipt-item-amount">₹${item.amount().toFixed(2)}</div>
+          `;
+            container.appendChild(div);
+          });
+        }
+
+        function formatDate(dateString) {
+          const [year, month, day] = dateString.split('-');
+          return `${day}/${month}/${year.slice(-2)}`;
+        }
+
+        function clearInputs(type) {
+          document.getElementById(`${type}-item-name`).value = '';
+          document.getElementById(`${type}-item-qty`).value = '1';
+          document.getElementById(`${type}-item-price`).value = '';
+        }
+
+        function clearAll() {
+          if (confirm('Clear all items and reset?')) {
+            foodItems = [];
+            barItems = [];
+            document.getElementById('food-item-list').innerHTML = '';
+            document.getElementById('bar-item-list').innerHTML = '';
+            generateReceipt();
+          }
+        }
+
+        function loadExample() {
+          clearAll();
+          foodItems = [
+            {name: "Egg Roast (3)", qty: 1, price: 100, amount: () => 100}
+          ];
+          barItems = [
+            {name: "Budweiser (Big)", qty: 2, price: 350, amount: () => 700}
+          ];
+          document.getElementById('bill-no').value = '2043';
+          document.getElementById('dine-in').value = 'AC 2';
+          document.getElementById('token-no').value = '155, 160';
+          generateReceipt();
+        }
+      });
+    </script>
+</body>
+
+</html>
